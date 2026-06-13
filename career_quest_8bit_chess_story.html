@@ -1,0 +1,187 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+#cq{font-family:'Press Start 2P',monospace;}
+#cq *{box-sizing:border-box;}
+#cqcanvas{image-rendering:pixelated;image-rendering:crisp-edges;}
+#cq .blink{animation:cqbl 1s steps(1) infinite;}
+@keyframes cqbl{50%{opacity:0;}}
+#cq button{font-family:'Press Start 2P',monospace;}
+</style>
+<div id="cq" style="padding:0.5rem 0;">
+  <div id="scene" style="position:relative;width:100%;height:600px;background:#0b0d1c;border-radius:6px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;border:3px solid #f4ead2;box-shadow:0 0 0 3px #0b0d1c, 0 0 0 6px #2a2440;">
+    <div style="flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#14112e;border-bottom:3px solid #f4ead2;">
+      <span style="font-size:9px;color:#ffe6a8;letter-spacing:1px;">MURSALEEN'S JOURNEY</span>
+      <span id="moveCount" style="font-size:9px;color:#6fb7ff;">1/7</span>
+    </div>
+    <div id="cwrap" style="flex:1 1 auto;position:relative;min-height:0;">
+      <canvas id="cqcanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+    </div>
+    <div style="flex:0 0 auto;margin:0 12px 12px;background:#14112e;border:4px solid #f4ead2;box-shadow:inset 0 0 0 2px #14112e, 0 0 0 3px #05060f;padding:12px 14px;min-height:124px;position:relative;">
+      <div id="hHead" style="font-size:11px;color:#6fb7ff;line-height:1.4;margin-bottom:6px;">KASHMIR</div>
+      <div id="hSub" style="font-size:8px;color:#9a93c8;letter-spacing:1px;margin-bottom:10px;">WHERE IT BEGAN</div>
+      <div id="hBody" style="font-size:9px;color:#f4f0e4;line-height:1.7;white-space:pre-wrap;min-height:34px;"></div>
+      <span id="hCur" class="blink" style="position:absolute;right:12px;bottom:8px;font-size:11px;color:#ffe6a8;">&#9660;</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+    <button id="playBtn" aria-label="Play or pause"><i class="ti ti-player-pause" aria-hidden="true"></i></button>
+    <button id="replayBtn" aria-label="Replay"><i class="ti ti-refresh" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cv=document.getElementById('cqcanvas'), ctx=cv.getContext('2d'), scene=document.getElementById('scene'),
+        cwrap=document.getElementById('cwrap'), hHead=document.getElementById('hHead'), hSub=document.getElementById('hSub'),
+        hBody=document.getElementById('hBody'), hCur=document.getElementById('hCur'), moveCount=document.getElementById('moveCount'),
+        playBtn=document.getElementById('playBtn'), replayBtn=document.getElementById('replayBtn');
+
+  const acc=["#6fb7ff","#5fd6a0","#b69cff","#ffc24b","#5aa9ff","#ff8a5c","#ffe6a8"];
+  const CH=[
+    {place:"KASHMIR",sub:"WHERE IT BEGAN",body:"Born curious -\nscience, maths & chess."},
+    {place:"ROOT2FRUIT '19-'21",sub:"OPERATIONS MANAGER",body:"Ran an agri startup\nacross 9 districts."},
+    {place:"THE PAUSE '21-'22",sub:"LEVEL UP",body:"A year to learn &\nsharpen the game."},
+    {place:"BYJU'S '22-'23",sub:"CENTRE HEAD / MAHARASHTRA",body:"Moved south, led the\nteam. CSAT 8.9."},
+    {place:"PHYSICSWALLAH '23-'25",sub:"ACADEMIC OPS / JAMMU",body:"Built Jammu centre from\nzero. 60+ faculty."},
+    {place:"DELHIVERY / NOW",sub:"FOUNDER MODE",body:"Building a new startup\ninside the network."},
+    {place:"ONWARD >",sub:"NEXT MOVE LOADING",body:"Still curious. Chess,\nmaths, tech. To be cont."}
+  ];
+  const M=[[3,0],[5,1],[2,2],[4,6],[1,1],[5,3],[3,4]];
+
+  function kpath(a,b){ if(a[0]===b[0]&&a[1]===b[1])return[a];
+    const mv=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+    const key=p=>p[0]+","+p[1],prev={},seen=new Set([key(a)]),q=[a];
+    while(q.length){const cur=q.shift();
+      for(const m of mv){const nc=[cur[0]+m[0],cur[1]+m[1]];
+        if(nc[0]<0||nc[0]>7||nc[1]<0||nc[1]>7)continue; const k=key(nc); if(seen.has(k))continue;
+        seen.add(k); prev[k]=cur;
+        if(nc[0]===b[0]&&nc[1]===b[1]){const path=[];let t=nc;while(t){path.unshift(t);t=prev[key(t)];}return path;}
+        q.push(nc);}}
+    return [a,b];
+  }
+  const SEG=[null]; for(let k=1;k<M.length;k++)SEG.push(kpath(M[k-1],M[k]));
+  const mcell={}; M.forEach((m,i)=>mcell[m[0]+","+m[1]]=i);
+
+  const KN=["....oooo....","...obbbboo..","..obbbbbbbo.",".obbbbbbbbbo",".obmbbbbbbbo","oobmbbbbbbbo","obmmobbbbbbo",".ommbbbbbbbo","..oobbbbbbo.","...obbbbbbo.","..obbbbbbbbo",".oobbbbbbbbo",".oooooooooo."];
+  const SP={
+    pawn:["..ooo..",".o***o.",".o***o.","..ooo..",".o***o.","o*****o","o*****o","ooooooo"],
+    rook:["o.o.o.o","ooooooo",".o***o.",".o***o.",".o***o.",".o***o.","o*****o","ooooooo"],
+    bishop:["...o...","..o*o..",".o***o.",".o*o*o.",".o***o.",".o***o.","..o*o..","o*****o","ooooooo"],
+    queen:["o.o.o.o.o",".ooooooo.","..o***o..",".o*****o.",".o*****o.",".o*****o.","o*******o","ooooooooo"],
+    king:["...o...","..ooo..","...o...",".o***o.","o*****o","o*****o","o*****o","o*****o","ooooooo"],
+    crown:["o.o.o.o.o","o*o*o*o*o","o*******o","o*******o","o*******o","ooooooooo"],
+    knight:KN
+  };
+  const pieceSeq=["pawn","knight","bishop","rook","queen","king","crown"];
+
+  function drawSprite(g,x,y,ps,map){ for(let r=0;r<g.length;r++){const row=g[r];
+    for(let c=0;c<row.length;c++){const ch=row[c]; if(ch==='.'||ch===' ')continue; const col=map[ch]; if(!col)continue;
+      ctx.fillStyle=col; ctx.fillRect(Math.round(x+c*ps),Math.round(y+r*ps),ps,ps);}}}
+
+  let W=0,H=0,dpr=1,bs=0,cs=0,bX=0,bY=0,trayY=0,trayH=0;
+  function resize(){ dpr=Math.min(window.devicePixelRatio||1,2);
+    W=cwrap.clientWidth; H=cwrap.clientHeight;
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.imageSmoothingEnabled=false;
+    trayH=Math.min(54,H*0.16); const area=H-trayH-8;
+    bs=Math.min(W-16,area); cs=Math.floor(bs/8)*1; bs=cs*8; bX=Math.round((W-bs)/2); bY=6; trayY=bY+bs+8;
+  }
+  function cc(c,r){return [bX+c*cs+cs/2, bY+r*cs+cs/2];}
+
+  let chapter=0,captured=[0],phase="story",parts=[];
+  let T=0,prevTs=null,running=true,done=false;
+  let typeStartT=0,fullLen=0,firstFullT=-1;
+  let seg=null,hopIdx=0,hopStartT=0; const HOP=230;
+
+  function setChapter(i){ chapter=i; const c=CH[i]; hHead.textContent=c.place; hHead.style.color=acc[c.a!==undefined?c.a:i];
+    hSub.textContent=c.sub; fullLen=c.body.length; typeStartT=T; firstFullT=-1; hBody.textContent="";
+    moveCount.textContent=(i+1)+"/7"; }
+  function beginMove(){ phase="move"; seg=SEG[chapter+1]; hopIdx=0; hopStartT=T; }
+  function burst(x,y,col){ for(let k=0;k<14;k++){const a=Math.random()*7,s=0.7+Math.random()*2; parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col});} }
+  function reset(){ chapter=0;captured=[0];phase="story";parts=[];done=false;running=true; playBtn.innerHTML='<i class="ti ti-player-pause" aria-hidden="true"></i>'; setChapter(0); }
+
+  function easeIO(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+
+  function frame(ts){
+    if(prevTs===null)prevTs=ts; const dt=Math.min(60,ts-prevTs); prevTs=ts; if(running)T+=dt;
+
+    // logic
+    let kp;
+    if(phase==="story"){
+      const shown=Math.min(fullLen,Math.floor((T-typeStartT)/34));
+      hBody.textContent=CH[chapter].body.slice(0,shown);
+      const full=shown>=fullLen; hCur.style.display=full?"block":"none";
+      if(full&&firstFullT<0)firstFullT=T;
+      if(full&&chapter<6&&T-firstFullT>1900&&running)beginMove();
+      if(full&&chapter>=6&&!done){done=true;playBtn.innerHTML='<i class="ti ti-refresh" aria-hidden="true"></i>';}
+      const b=cc(M[chapter][0],M[chapter][1]); kp=[b[0],b[1]-Math.abs(Math.sin(T*0.004))*2];
+    } else {
+      const a=cc(seg[hopIdx][0],seg[hopIdx][1]), b=cc(seg[hopIdx+1][0],seg[hopIdx+1][1]);
+      let t=(T-hopStartT)/HOP; if(t>1)t=1; const te=easeIO(t);
+      kp=[a[0]+(b[0]-a[0])*te, a[1]+(b[1]-a[1])*te - Math.sin(Math.PI*t)*cs*0.7];
+      if(t>=1){ hopIdx++; if(hopIdx>=seg.length-1){ const nc=chapter+1; captured.push(nc);
+          const cpos=cc(M[nc][0],M[nc][1]); burst(cpos[0],cpos[1],acc[nc]); phase="story"; setChapter(nc);
+        } else hopStartT=T; }
+    }
+
+    // render
+    ctx.imageSmoothingEnabled=false;
+    ctx.fillStyle="#0b0d1c"; ctx.fillRect(0,0,W,H);
+    // board frame
+    ctx.fillStyle="#2a1c10"; ctx.fillRect(bX-4,bY-4,bs+8,bs+8);
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){ ctx.fillStyle=((r+c)%2)?"#6f4a2a":"#e3c08a"; ctx.fillRect(bX+c*cs,bY+r*cs,cs,cs); }
+
+    // milestone gems
+    for(const key in mcell){ const mi=mcell[key], xy=key.split(",").map(Number), p=cc(xy[0],xy[1]);
+      const reached=captured.indexOf(mi)>=0, cur=(mi===chapter), pulse=0.5+0.5*Math.sin(T*0.006+mi);
+      const x=bX+xy[0]*cs, y=bY+xy[1]*cs;
+      ctx.globalAlpha=reached?0.30:(0.14+0.12*pulse); ctx.fillStyle=acc[mi]; ctx.fillRect(x,y,cs,cs); ctx.globalAlpha=1;
+      const gs=Math.max(3,Math.floor(cs*0.16)), gx=Math.round(p[0]), gy=Math.round(p[1]);
+      ctx.fillStyle=acc[mi];
+      ctx.fillRect(gx-gs,gy,gs*2+ (gs%2),gs); ctx.fillRect(gx,gy-gs,gs,gs*2+(gs%2));
+      if(cur){ ctx.fillStyle="#ffffff"; ctx.fillRect(gx-1,gy-1,2,2); }
+    }
+    // route line + dots through reached milestones
+    ctx.strokeStyle="rgba(255,240,210,0.28)"; ctx.lineWidth=2; ctx.setLineDash([3,4]); ctx.beginPath();
+    for(let i=0;i<=chapter;i++){const p=cc(M[i][0],M[i][1]); i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}
+    if(phase==="move")ctx.lineTo(kp[0],kp[1]); ctx.stroke(); ctx.setLineDash([]);
+
+    // particles (pixel)
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i]; if(running){p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.life-=0.025;}
+      if(p.life<=0){parts.splice(i,1);continue;} ctx.globalAlpha=p.life; ctx.fillStyle=p.col; ctx.fillRect(Math.round(p.x),Math.round(p.y),3,3); ctx.globalAlpha=1;}
+
+    // knight sprite + accent ring
+    const ps=Math.max(2,Math.floor(cs*0.74/12)); const sw=12*ps, sh=13*ps;
+    const ox=Math.round(kp[0]-sw/2), oy=Math.round(kp[1]-sh/2);
+    const ring=0.5+0.5*Math.sin(T*0.006); ctx.globalAlpha=0.4+0.4*ring; ctx.fillStyle=acc[chapter];
+    ctx.fillRect(ox-ps,oy-ps,sw+2*ps,ps); ctx.fillRect(ox-ps,oy+sh,sw+2*ps,ps);
+    ctx.fillRect(ox-ps,oy,ps,sh); ctx.fillRect(ox+sw,oy,ps,sh); ctx.globalAlpha=1;
+    drawSprite(KN,ox,oy,ps,{o:"#241c12",b:"#f6f1e2",m:"#cdbfa0"});
+
+    // tray
+    ctx.fillStyle="#0c0f1f"; ctx.fillRect(0,trayY-4,W,trayH+8);
+    ctx.fillStyle="rgba(244,234,210,0.25)"; ctx.fillRect(bX,trayY-4,bs,1);
+    const tps=Math.max(2,Math.floor((trayH-10)/9)), slotW=bs/7;
+    for(let i=0;i<7;i++){ const sx=bX+i*slotW+slotW/2, has=captured.indexOf(i)>=0, g=SP[pieceSeq[i]];
+      if(has){ const w=g[0].length*tps, h=g.length*tps; drawSprite(g,Math.round(sx-w/2),Math.round(trayY+(trayH-h)/2-2),tps,{"*":acc[i],"o":"#1a1626"}); }
+      else { ctx.fillStyle="rgba(255,255,255,0.10)"; ctx.fillRect(Math.round(sx-2),Math.round(trayY+trayH/2-2),4,4); } }
+
+    // scanlines
+    ctx.globalAlpha=0.10; ctx.fillStyle="#000"; for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1); ctx.globalAlpha=1;
+
+    requestAnimationFrame(frame);
+  }
+
+  scene.addEventListener("click",()=>{ if(done){reset();return;}
+    if(phase==="story"){ const shown=Math.floor((T-typeStartT)/34);
+      if(shown<fullLen){ typeStartT=T-fullLen*34-1; }
+      else if(chapter<6){ beginMove(); } } });
+  playBtn.addEventListener("click",()=>{ if(done){reset();return;} running=!running;
+    playBtn.innerHTML=running?'<i class="ti ti-player-pause" aria-hidden="true"></i>':'<i class="ti ti-player-play" aria-hidden="true"></i>'; });
+  replayBtn.addEventListener("click",reset);
+
+  function boot(){ resize(); setChapter(0); requestAnimationFrame(frame); }
+  if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(()=>{resize();}); }
+  window.addEventListener("resize",resize);
+  boot();
+})();
+</script>
